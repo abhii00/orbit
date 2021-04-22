@@ -120,6 +120,9 @@ class astro_Object:
         pygame.draw.circle(window, self.color, self.position, self.radius)
 
 if __name__ =="__main__":
-    aos = [astro_Object("1", (255,255,255), 1, 10, [300,300], [1,1])]
+    aos = [
+        astro_Object("1", (255,255,255), 1, 10, [300,300], [1,1]),
+        astro_Object("1", (255,0,0), 1, 10, [300,300], [1,1])
+    ]
     universe = Universe(height=600, width=600, dt= 0.01, t_end=100, astro_objects=aos)
     universe.start_Simulation()

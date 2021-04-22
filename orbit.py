@@ -33,7 +33,10 @@ class Universe:
         Returns:
             A list containing the force vector.
         """
-        pass
+
+        G = 1
+        r = ao2.position - ao1.position
+        return (G*ao1.mass*ao2.mass/np.linalg.norm(r)**2) * (r/np.linalg.norm(r))
 
     def numerical_Integrator(self, method, ao):
         """numerically integrates the motion for a single object.
@@ -47,7 +50,8 @@ class Universe:
         
         #euler integration
         if method == "Euler":
-            ao.position = [x + self.dt*ao.velocity[i] for i,x in enumerate(ao.position)]
+            ao.velocity += self.dt*ao.acceleration
+            ao.position += self.dt*ao.velocity
 
         return ao
 
@@ -71,12 +75,21 @@ class Universe:
             #fill the screen black
             self.window.fill((0,0,0))
 
-            #iterate through all the bodies
-            for ao in self.astro_objects:
-                #numerically integrate to find new motion
-                self.numerical_Integrator("Euler",ao)
+            #iterate through all the objects
+            for i, ao in enumerate(self.astro_objects):
+                #copy the list of objects and remove the current one
+                astro_objects_temp = self.astro_objects.copy()
+                astro_objects_temp.pop(i)
 
-                #draw all the bodies
+                #for every other object, calculate the acceleration
+                #THIS IS INEFFICIENT AS FORCES ARE SYMMETRICAL
+                for ao2 in astro_objects_temp:
+                    ao.acceleration += self.gravitational_Force(ao, ao2)/ao.mass
+
+                #numerically integrate to find new motion
+                ao = self.numerical_Integrator("Euler", ao)
+
+                #draw the object
                 ao.draw_Object(self.window)
 
             #update window
@@ -104,9 +117,9 @@ class astro_Object:
         self.color = color
         self.mass = mass
         self.radius = radius
-        self.position = position
-        self.velocity = velocity
-        self.acceleration = 0
+        self.position = np.array(position, dtype="float64")
+        self.velocity = np.array(velocity, dtype="float64")
+        self.acceleration = np.empty_like(position, dtype="float64")
 
     def draw_Object(self, window):
         """draws the object on a given window.
@@ -121,8 +134,8 @@ class astro_Object:
 
 if __name__ =="__main__":
     aos = [
-        astro_Object("1", (255,255,255), 1, 10, [300,300], [1,1]),
-        astro_Object("1", (255,0,0), 1, 10, [300,300], [1,1])
+        astro_Object("1", (255,255,255), 1, 10, [200,300], [0,-1]),
+        astro_Object("2", (255,255,255), 1, 10, [400,300], [0,1])
     ]
-    universe = Universe(height=600, width=600, dt= 0.01, t_end=100, astro_objects=aos)
+    universe = Universe(height=600, width=600, dt= 0.01, t_end=1000, astro_objects=aos)
     universe.start_Simulation()

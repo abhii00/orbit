@@ -1,5 +1,6 @@
 import numpy as np
 import pygame
+import typhon
 
 class Universe:
     """class to hold the plottable universe.
@@ -75,7 +76,24 @@ class Universe:
 
         return g
 
-    def start_Simulation(self):
+    def check_Collisions(self):
+        """checks for collisions between objects."""
+
+        colliding_objects = []
+
+        for i, ao1 in enumerate(self.astro_objects):
+            for j, ao2 in enumerate(self.astro_objects):
+
+                if not(i == j or (j, i) in colliding_objects):
+                    r = np.linalg.norm(ao1.position - ao2.position)
+                    minsep = ao1.radius + ao2.radius
+
+                    if r <= minsep:
+                        colliding_objects.append((i,j))
+        
+        return colliding_objects
+
+    def start_Simulation(self , test=False):
         """simulates the motion."""
 
         self.sim_run = True
@@ -100,6 +118,7 @@ class Universe:
             self.astro_objects_original = self.astro_objects.copy()
 
             #iterate through all the objects
+            self.check_Collisions()
             for i, ao in enumerate(self.astro_objects):
                 #numerically integrate to find new motion
                 ao.update_Motion("Velocity Verlet", self.gravitational_Field, self.dt)
@@ -113,6 +132,9 @@ class Universe:
             self.step += 1
             self.t += self.dt
             pygame.display.flip()
+
+            #end simulation after one loop if testing
+            if test: self.sim_run = False
 
 class astro_Object:
     """class to hold a single star/planet/moon.
@@ -201,8 +223,8 @@ if __name__ =="__main__":
     aos = [
         astro_Object("1", (0,0,255), 10, 10, [200,300], [2,-2]),
         astro_Object("2", (255,0,0), 10, 10, [400,300], [-2,2]),
-        astro_Object("3", (0,255,0), 10, 7, [700,400], [-2,2]),
+        astro_Object("3", (0,255,0), 10, 7, [400,300], [-2,2]),
         astro_Object("bigchonker", (255,255,255), 100, 30, [500,500], [0,0])
     ]
     universe = Universe(height=800, width=800, dt= 0.01, t_end=1000, astro_objects=aos)
-    universe.start_Simulation()
+    universe.start_Simulation(test=True)

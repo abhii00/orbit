@@ -1,6 +1,8 @@
 import numpy as np
 import pygame
-import typhon
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+pygame.init()
 
 class Universe:
     """class to hold the plottable universe.
@@ -12,8 +14,11 @@ class Universe:
         t_end (float): the time to simulate until
         astro_objects (list): a list of the bodies in the universe
         
-        starrysky_size (int): the number of stars in the starry background
+        starrysky_number (int): the number of stars in the starry background
         starrysky_twinklestep (int): the number of timesteps inbetween the background twinkles
+        collision_method (str): the collision method to use - pairwise, grid
+        collision_min_sep (float): the minimum percentage separation possible between objects + 1
+        integration_method (str): the numerical integration method to use - Euler, Velocity Verlet
     Returns:
         None
     """
@@ -25,9 +30,12 @@ class Universe:
         self.width = width
         self.dt = dt
         self.t_end = t_end
-        self.astro_objects = astro_objects
-        self.starrysky_size = kwargs.get("starrysky_size", 80)
+        self.astro_objects = np.array(astro_objects)
+        self.starrysky_number = kwargs.get("starrysky_number", 80)
         self.starrysky_twinklestep = kwargs.get("starrysky_twinklestep", 70)
+        self.collision_method = kwargs.get("collision_method", "grid")
+        self.collision_min_sep = kwargs.get("collision_min_sep", 1.001)
+        self.integration_method = kwargs.get("integration_method", "Velocity Verlet")
 
         self.initialise_Background()
         
@@ -35,10 +43,10 @@ class Universe:
         """initialises the background."""
 
         #initialise window
-        self.window = pygame.display.set_mode([self.height, self.width])
-
+        self.window = pygame.display.set_mode([self.height, self.width], pygame.DOUBLEBUF, 32)
+        
         #randomly generate starry background
-        self.starrysky = np.random.uniform(low=0,high=[self.width,self.height],size=(self.starrysky_size,2))
+        self.starrysky = np.random.uniform(low=0,high=[self.width,self.height],size=(self.starrysky_number,2))
         
     def draw_Background(self):
         """draws the background."""
@@ -46,10 +54,12 @@ class Universe:
         #fill the screen black
         self.window.fill((0,0,0))
 
+        #fill the screen with noise
+
         #generate random intensities for twinkling
         if (self.step % self.starrysky_twinklestep == 0):
             self.starrysky_colors = [np.random.uniform(low=200, high=255) for starrystar in self.starrysky]
-            self.starrysky_radii = np.random.randint(low=1,high=3,size=self.starrysky_size)
+            self.starrysky_radii = np.random.randint(low=1,high=3,size=self.starrysky_number)
 
         #draw starrysky
         for i, starrystar in enumerate(self.starrysky):
@@ -76,24 +86,76 @@ class Universe:
 
         return g
 
-    def check_Collisions(self):
-        """checks for collisions between objects."""
-
-        colliding_objects = []
-
-        for i, ao1 in enumerate(self.astro_objects):
-            for j, ao2 in enumerate(self.astro_objects):
-
-                if not(i == j or (j, i) in colliding_objects):
-                    r = np.linalg.norm(ao1.position - ao2.position)
-                    minsep = ao1.radius + ao2.radius
-
-                    if r <= minsep:
-                        colliding_objects.append((i,j))
+    def collide_Objects(self, method):
+        """handles collisions between objects.
         
-        return colliding_objects
+        Parameters:
+            method (str): collision detection method - pairwise, grid
+        Returns:
+            None
+        """
 
-    def start_Simulation(self , test=False):
+        def collide_Pairwise(aos):
+            """handles pairwise collision between objects.
+
+            Parameters:
+                aos (list): list of pairs of objects to collide
+            Returns:
+                None
+            """
+            colliding_objects = []
+
+            for i, ao1 in enumerate(aos):
+                for j, ao2 in enumerate(aos):
+
+                    if not(i == j or (j, i) in colliding_objects):
+                        r = np.linalg.norm(ao1.position - ao2.position)
+                        minsep = ao1.radius + ao2.radius
+                        minsep *= self.collision_min_sep
+
+                        if r <= minsep:
+                            colliding_objects.append((i,j))
+            
+            for pair in colliding_objects:
+                ao1 = self.astro_objects[pair[0]]
+                ao2 = self.astro_objects[pair[1]]
+
+                u1 = ao1.velocity
+                u2 = ao2.velocity
+
+                total_mass = ao1.mass + ao2.mass
+
+                ao1.velocity = (u1*(ao1.mass - ao2.mass) + u2*2*ao2.mass)/total_mass
+                ao2.velocity = (u1*(ao2.mass - ao1.mass) + u2*2*ao1.mass)/total_mass
+
+                self.astro_objects[pair[0]] = ao1
+                self.astro_objects[pair[1]] = ao2
+
+        #check for colliding objects if seperation small enough
+        if method == "pairwise":
+            collide_Pairwise(self.astro_objects)
+        
+        #returns a set of coords for each box in a 2 by 2 grid and then checks if colliding
+        elif method == "grid":
+            
+            boxes = [[], [], [], []]
+            for i, ao in enumerate(self.astro_objects):
+                x = ao.position[0]
+                y = ao.position[1]
+                if x <= self.width/2 and y <= self.height/2:
+                    boxes[0].append(i)
+                elif x > self.width/2 and y <= self.height/2:
+                    boxes[1].append(i)
+                elif x > self.width/2 and y > self.height/2:
+                    boxes[2].append(i)
+                else:
+                    boxes[3].append(i)
+            
+            for box in boxes:
+                if len(box) > 1:
+                    collide_Pairwise(self.astro_objects[box])
+
+    def start_Simulation(self, test=False):
         """simulates the motion."""
 
         self.sim_run = True
@@ -118,11 +180,10 @@ class Universe:
             self.astro_objects_original = self.astro_objects.copy()
 
             #iterate through all the objects
-            self.check_Collisions()
+            self.collide_Objects(self.collision_method)
             for i, ao in enumerate(self.astro_objects):
                 #numerically integrate to find new motion
-                ao.update_Motion("Velocity Verlet", self.gravitational_Field, self.dt)
-                ao.update_Trail()
+                ao.update_Motion(self.integration_method, self.gravitational_Field, self.dt)
 
                 #draw the object
                 ao.draw_Object(self.window)
@@ -146,21 +207,34 @@ class astro_Object:
         radius (float): the radius of the object
         position (list): the position of the object
         velocity (list): the velocity of the object
+
+        min_trail_length (int): the minimum length of the trail
+        trail_length (int): the length of the trail
     Returns:
         None
     
     """
-    def __init__(self, ID, color, mass, radius, position, velocity):
+    def __init__(self, ID, color, mass, radius, position, velocity, **kwargs):
         """initialisation."""
 
         self.ID = ID
         self.color = color
         self.mass = mass
         self.radius = radius
+
         self.position = np.array(position, dtype="float64")
-        self.trail = []
         self.velocity = np.array(velocity, dtype="float64")
         self.acceleration = np.empty_like(position, dtype="float64")
+
+        self.min_trail_length = kwargs.get("min_trail_length", 10)
+        self.trail_length = kwargs.get("trail_length", 1000)
+
+        self.trail = [list(self.position)]
+        self.trail_color = tuple([val * 0.7 for val in self.color])
+        self.trail_thickness = int(np.floor(0.2*self.radius)) + 1
+
+        self.atmos_color = tuple([val * 0.3 for val in self.color])
+        self.atmos_proportion = np.random.uniform(low = 0.5, high = 1)
     
     def update_Motion(self, method, acc, dt):
         """numerically integrates the motion.
@@ -188,13 +262,8 @@ class astro_Object:
 
             self.velocity += 0.5*(self.acceleration+acc(self.position))*dt
 
-    def update_Trail(self, trail_length = 3000):
-        """updates the object's trail"""
-
-        self.trail.append(list(self.position))
-
-        if len(self.trail) > trail_length:
-            del self.trail[0]
+        if np.linalg.norm(self.position - self.trail[-1]) > 0.01:
+            self.trail.append(list(self.position))
             
     def draw_Object(self, window):
         """draws the object on a given window.
@@ -205,9 +274,13 @@ class astro_Object:
             None
         """
 
-        pygame.draw.circle(window, self.color, self.position, self.radius)
-        
-    def draw_Trail(self, window, min_trail_length = 5):
+        #draw atmosphere
+        pygame.draw.circle(window, self.atmos_color, self.position, self.radius)
+
+        #draw object
+        pygame.draw.circle(window, self.color, self.position, self.radius*self.atmos_proportion)
+
+    def draw_Trail(self, window):
         """draws the object trail.
 
         Parameters:
@@ -215,16 +288,24 @@ class astro_Object:
         Returns:
             None
         """
+        
+        #check if trail long enough
+        if len(self.trail) > self.min_trail_length:
 
-        if len(self.trail) > min_trail_length:
-            pygame.draw.lines(window, self.color, False, self.trail, 2)
+            #check if trail shorter than expected length and draw whole length
+            if len(self.trail) < self.trail_length:
+                pygame.draw.lines(window, self.trail_color, False, self.trail, self.trail_thickness)
+            #draw first trail_length points
+            else:
+                pygame.draw.lines(window, self.trail_color, False, self.trail[len(self.trail) - self.trail_length:], self.trail_thickness)
 
 if __name__ =="__main__":
     aos = [
-        astro_Object("1", (0,0,255), 10, 10, [200,300], [2,-2]),
-        astro_Object("2", (255,0,0), 10, 10, [400,300], [-2,2]),
-        astro_Object("3", (0,255,0), 10, 7, [400,300], [-2,2]),
-        astro_Object("bigchonker", (255,255,255), 100, 30, [500,500], [0,0])
+        astro_Object("1", (255,255,255), 10, 15, [400,400], [0,0]),
+        astro_Object("2", (255,0,255), 0.1, 3, [200,400], [0, 5]),
+        astro_Object("3", (0,255,255), 0.1, 3, [600,400], [0, -5]),
+        astro_Object("4", (255,255,0), 0.1, 3, [400,200], [-5, 0]),
+        astro_Object("5", (200,50,0), 0.1, 3, [400,600], [5, 0])
     ]
-    universe = Universe(height=800, width=800, dt= 0.01, t_end=1000, astro_objects=aos)
-    universe.start_Simulation(test=True)
+    universe = Universe(height=800, width=800, dt=0.01, t_end=1000, astro_objects=aos)
+    universe.start_Simulation()

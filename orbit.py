@@ -16,7 +16,8 @@ class Universe:
         
         starrysky_number (int): the number of stars in the starry background
         starrysky_twinklestep (int): the number of timesteps inbetween the background twinkles
-        collision_method (str): the collision method to use - pairwise, grid
+        collision_detection_method (str): the collision detection method to use - pairwise, grid
+        collision_method (str): the collision method to use - elastic, absorb
         collision_min_sep (float): the minimum percentage separation possible between objects + 1
         integration_method (str): the numerical integration method to use - Euler, Velocity Verlet
     Returns:
@@ -33,7 +34,8 @@ class Universe:
         self.astro_objects = np.array(astro_objects)
         self.starrysky_number = kwargs.get("starrysky_number", 80)
         self.starrysky_twinklestep = kwargs.get("starrysky_twinklestep", 70)
-        self.collision_method = kwargs.get("collision_method", "grid")
+        self.collision_detection_method = kwargs.get("collision_detection_method", "pairwise")
+        self.collision_method = kwargs.get("collision_method", "absorb")
         self.collision_min_sep = kwargs.get("collision_min_sep", 1.001)
         self.integration_method = kwargs.get("integration_method", "Velocity Verlet")
 
@@ -67,6 +69,30 @@ class Universe:
             starrystar_radius = self.starrysky_radii[i]
             pygame.draw.circle(self.window, (starrystar_color,starrystar_color,starrystar_color), starrystar, starrystar_radius)
 
+    def create_Objectbymouse(self):
+        """adds objects using the mouse."""
+        #id
+        ID = str(np.shape(self.astro_objects)[0])
+
+        #color
+        color = tuple(np.random.uniform(low=0, high=255, size=3))
+
+        #mass
+        mass = 0.01
+
+        #radius
+        radius = 2
+
+        #position
+        position = [x for x in pygame.mouse.get_pos()]
+
+        #velocity
+        velocity = [0,0]
+        
+        #create object
+        ao = astro_Object(ID, color,mass, radius, position, velocity)
+        self.astro_objects = np.append(self.astro_objects, ao)
+
     def gravitational_Field(self, x):
         """calculates the gravitational field at a given point in space.
         
@@ -86,25 +112,28 @@ class Universe:
 
         return g
 
-    def collide_Objects(self, method):
-        """handles collisions between objects.
+    def collide_Objects(self, detection_method, collision_method):
+        """detects and handles collisions between objects.
         
         Parameters:
-            method (str): collision detection method - pairwise, grid
+            detection_method (str): collision detection method - pairwise, grid
+            collision_method (str): collision method - elastic, absorb
         Returns:
             None
         """
 
-        def collide_Pairwise(aos):
+        def collide_Pairwise(aos, collision_method):
             """handles pairwise collision between objects.
 
             Parameters:
                 aos (list): list of pairs of objects to collide
+                collision_method (str): collision method - elastic, absorb
             Returns:
                 None
             """
             colliding_objects = []
 
+            #check if objects actually colliding
             for i, ao1 in enumerate(aos):
                 for j, ao2 in enumerate(aos):
 
@@ -116,27 +145,83 @@ class Universe:
                         if r <= minsep:
                             colliding_objects.append((i,j))
             
-            for pair in colliding_objects:
-                ao1 = self.astro_objects[pair[0]]
-                ao2 = self.astro_objects[pair[1]]
+            #elastic collisions
+            if collision_method == "elastic":
+                for pair in colliding_objects:
+                    ao1 = self.astro_objects[pair[0]]
+                    ao2 = self.astro_objects[pair[1]]
 
-                u1 = ao1.velocity
-                u2 = ao2.velocity
+                    u1 = ao1.velocity
+                    u2 = ao2.velocity
 
-                total_mass = ao1.mass + ao2.mass
+                    total_mass = ao1.mass + ao2.mass
 
-                ao1.velocity = (u1*(ao1.mass - ao2.mass) + u2*2*ao2.mass)/total_mass
-                ao2.velocity = (u1*(ao2.mass - ao1.mass) + u2*2*ao1.mass)/total_mass
+                    #conservation of momentum and energy
+                    ao1.velocity = (u1*(ao1.mass - ao2.mass) + u2*2*ao2.mass)/total_mass
+                    ao2.velocity = (u1*(ao2.mass - ao1.mass) + u2*2*ao1.mass)/total_mass
 
-                self.astro_objects[pair[0]] = ao1
-                self.astro_objects[pair[1]] = ao2
+                    self.astro_objects[pair[0]] = ao1
+                    self.astro_objects[pair[1]] = ao2
+            
+            #absorption collision
+            elif collision_method == "absorb":
+                aos_to_add = np.array([])
+                aos_to_delete = []
+
+                for pair in colliding_objects:
+                    ao1 = self.astro_objects[pair[0]]
+                    ao2 = self.astro_objects[pair[1]]
+
+                    #id
+                    ID = "Col. between {} and {}".format(ao1.ID, ao2.ID)
+
+                    #average colour
+                    weighted_ao1_color = tuple([val*ao1.mass for val in ao1.color])
+                    weighted_ao2_color = tuple([val*ao2.mass for val in ao2.color])
+                    weighted_colors = (weighted_ao1_color, weighted_ao2_color)
+                    temp_color = [sum(y) / len(y) for y in zip(*weighted_colors)]
+                    color = tuple([255*x/max(temp_color) for x in temp_color])
+
+                    #total mass
+                    mass = ao1.mass + ao2.mass
+
+                    #radius
+                    radius = np.cbrt(ao1.radius**3 + ao2.radius**3)
+
+                    #position
+                    if ao1.mass > ao2.mass:
+                        position = ao1.position
+                    else:
+                        position = ao2.position
+
+                    #velocity
+                    velocity = (ao1.mass*ao1.velocity + ao2.mass*ao2.velocity)/mass
+                    print(ao1.velocity)
+                    print(ao2.velocity)
+                    print(velocity)
+
+                    #create new object
+                    ao = astro_Object(ID, color, mass, radius, position, velocity)
+                    ao.atmos_proportion = ((ao1.radius**3)*ao1.atmos_proportion + (ao2.radius**3)*ao2.atmos_proportion)/(2*(ao.radius**3))
+                    aos_to_add = np.append(aos_to_add, ao)
+
+                    #queue old objects to be deleted
+                    aos_to_delete.append(pair[0])
+                    aos_to_delete.append(pair[1])
+                
+                if np.any(aos_to_add):
+                    #delete old objects
+                    self.astro_objects = np.delete(self.astro_objects, aos_to_delete)
+
+                    #add new objects
+                    self.astro_objects = np.append(self.astro_objects, aos_to_add)
 
         #check for colliding objects if seperation small enough
-        if method == "pairwise":
-            collide_Pairwise(self.astro_objects)
+        if detection_method == "pairwise":
+            collide_Pairwise(self.astro_objects, self.collision_method)
         
         #returns a set of coords for each box in a 2 by 2 grid and then checks if colliding
-        elif method == "grid":
+        elif detection_method == "grid":
             
             boxes = [[], [], [], []]
             for i, ao in enumerate(self.astro_objects):
@@ -153,7 +238,7 @@ class Universe:
             
             for box in boxes:
                 if len(box) > 1:
-                    collide_Pairwise(self.astro_objects[box])
+                    collide_Pairwise(self.astro_objects[box], self.collision_method)
 
     def start_Simulation(self, test=False):
         """simulates the motion."""
@@ -164,10 +249,15 @@ class Universe:
         
         #main loop
         while self.sim_run:
-            #break out of loop if window exited
+            
+            #check events
             for event in pygame.event.get():
+                #break out of loop if window exited
                 if event.type == pygame.QUIT:
                     self.sim_run = False
+                #add object if mouse clicked
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    self.create_Objectbymouse()
 
             #break out of loop if maximum time reached
             if self.t > self.t_end: 
@@ -180,7 +270,7 @@ class Universe:
             self.astro_objects_original = self.astro_objects.copy()
 
             #iterate through all the objects
-            self.collide_Objects(self.collision_method)
+            self.collide_Objects(self.collision_detection_method, self.collision_method)
             for i, ao in enumerate(self.astro_objects):
                 #numerically integrate to find new motion
                 ao.update_Motion(self.integration_method, self.gravitational_Field, self.dt)

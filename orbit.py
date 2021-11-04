@@ -397,5 +397,5 @@ if __name__ =="__main__":
         astro_Object("4", (255,255,0), 0.1, 3, [400,200], [-5, 0]),
         astro_Object("5", (200,50,0), 0.1, 3, [400,600], [5, 0])
     ]
-    universe = Universe(height=800, width=800, dt=0.01, t_end=1000, astro_objects=aos)
+    universe = Universe(height=800, width=800, dt=0.5, t_end=2000, astro_objects=aos)
     universe.start_Simulation()

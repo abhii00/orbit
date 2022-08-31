@@ -2,8 +2,8 @@ import numpy as np
 import pygame as pyg
 import constants
 
-class CelestialObject:
-    '''Class to hold a single star/planet/moon.
+class Explorer:
+    '''Class to hold a manoeuvreable spacecraft
     
     Parameters:
         mass (float): the mass of the object (in true units)
@@ -11,18 +11,20 @@ class CelestialObject:
         color (tuple): the color of the object
         position (np array): 2d vector of the position of the object (in true units)
         velocity (np array): 2d vector of the velocity of the object (in true units)
+        orientation(np array): 2d vector of the orientation of the object
         trail_length (int): how many points to plot for the trail
     Returns:
         None
     '''
 
-    def __init__(self, mass, radius, color, position, velocity, **kwargs):
+    def __init__(self, mass, radius, color, position, velocity, orientation, **kwargs):
         #init
         self.mass = mass
         self.radius = radius
         self.color = color
         self.position = np.array(position, dtype='float64')
         self.velocity = np.array(velocity, dtype='float64')
+        self.orientation = np.array(orientation, dtype='float64')
         self.trail_length = kwargs.get("trail_length", 1200)
         self.acceleration = np.empty_like(position, dtype='float64')
         self.trail = np.array([self.position, self.position])
@@ -30,7 +32,7 @@ class CelestialObject:
         self.trail_thickness = 1
     
     def draw(self, window):
-        '''Draws the body onto a window.
+        '''Draws the explorer onto a window.
         
         Parameters:
             window (pygame.display): the window onto which the body is drawn
@@ -43,7 +45,7 @@ class CelestialObject:
         pyg.draw.lines(window, self.trail_color, False, (self.trail / constants.units.L).tolist(), self.trail_thickness)
 
     def move(self, F, timeStep):
-        '''Updates the position and motion of the body.
+        '''Updates the position and motion of the explorer.
 
         Parameters:
             F (np array): 2d vector of the forces on the body (in true units)

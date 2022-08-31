@@ -36,12 +36,15 @@ class Universe:
         self.timeStepTotal = 0
         self.simRunning = False
 
+    def addExplorer(self, explorer):
+        self.celestialObjects.append(explorer)
+
     def simulate(self, timeStep, timeEnd):
         '''Simulates the motion.
         
         Parameters:
-            timeStep (float): the simulation time step
-            timeEnd (float): the simulation time end
+            timeStep (float): the simulation time step (in true units)
+            timeEnd (float): the simulation time end (in true units)
         Returns:
             None
         '''
@@ -76,11 +79,9 @@ class Universe:
 
         for celestialObject in self.celestialObjects:
             if np.linalg.norm(celestialObject.position - mainObject.position) > 0.00000001:
-                M = celestialObject.mass * constants.units.M
-                m = mainObject.mass * constants.units.M
-                r = (celestialObject.position - mainObject.position) * constants.units.L
+                r = (celestialObject.position - mainObject.position)
                 
-                F += (constants.consts.G * M * m / np.linalg.norm(r)**2) * (r / np.linalg.norm(r))
+                F += (constants.consts.G * celestialObject.mass * mainObject.mass / np.linalg.norm(r)**2) * (r / np.linalg.norm(r))
         
         return F
 
@@ -92,6 +93,7 @@ class Universe:
 
     def _draw(self):
         '''Updates the window.'''
+        self.window.lock()
         self.window.fill((0,0,0))
 
         if self.timeStepTotal % self.starrySky_twinkleStep == 0:
@@ -104,5 +106,6 @@ class Universe:
 
         for celestialObject in self.celestialObjects:
             celestialObject.draw(self.window)
-
+        
+        self.window.unlock()
         pyg.display.update()

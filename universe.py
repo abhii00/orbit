@@ -14,19 +14,26 @@ class Universe:
         None
     '''
 
-    def __init__(self, windowHeight = 800, windowWidth = 800, celestialObjects = []):
+    def __init__(self, windowHeight = 800, windowWidth = 800, celestialObjects = [], **kwargs):
         '''Initialisation.'''
 
         #init
         self.windowHeight = windowHeight
         self.windowWidth = windowWidth
         self.celestialObjects = celestialObjects
+        self.starrySky_number = kwargs.get("starrySky_number", 80)
+        self.starrySky_twinkleStep = kwargs.get("starrySky_twinkleStep", 100)
         self.window = pyg.display.set_mode([self.windowHeight, self.windowWidth], pyg.DOUBLEBUF, 32)
+        self.starrySky_positions = np.random.uniform(low=0,high=[self.windowWidth,self.windowHeight],size=(self.starrySky_number,2))
+        self.starrySky_colors = [np.random.uniform(low=200, high=255) for star in self.starrySky_positions]
+        self.starrySky_radii = np.random.randint(low=1,high=3,size=self.starrySky_number)
+        self.starrySky_modifiers = np.random.rand(len(self.starrySky_colors))
 
         #simulate
         self.timeStep = 0
         self.timeTotal = 0
         self.timeEnd = 0
+        self.timeStepTotal = 0
         self.simRunning = False
 
     def simulate(self, timeStep, timeEnd):
@@ -45,9 +52,14 @@ class Universe:
         self.simRunning = True
 
         while self.simRunning:
+            for event in pyg.event.get():
+                if event.type == pyg.QUIT:
+                    self.simRunning = False
+
             self._draw()
             self._move()
             self.timeTotal += self.timeStep
+            self.timeStepTotal += 1
 
             if self.timeTotal >= self.timeEnd: self.simRunning = False
 
@@ -80,9 +92,17 @@ class Universe:
 
     def _draw(self):
         '''Updates the window.'''
-
         self.window.fill((0,0,0))
+
+        if self.timeStepTotal % self.starrySky_twinkleStep == 0:
+           self.starrySky_modifiers = np.random.rand(len(self.starrySky_colors)) 
+
+        for i, star_position in enumerate(self.starrySky_positions):
+            star_color = self.starrySky_colors[i] * self.starrySky_modifiers[i]
+            star_radius = self.starrySky_radii[i]
+            pyg.draw.circle(self.window, (star_color, star_color, star_color), star_position, star_radius)
 
         for celestialObject in self.celestialObjects:
             celestialObject.draw(self.window)
-            pyg.display.update()
+
+        pyg.display.update()

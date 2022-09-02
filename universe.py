@@ -75,7 +75,7 @@ class Universe:
             F (np array): 2d vector of the forces (in true units)
         '''
 
-        F = np.array([0, 0], dtype='float64')
+        F = np.array([0, 0, 0], dtype='float64')
 
         for celestialObject in self.celestialObjects:
             if np.linalg.norm(celestialObject.position - mainObject.position) > 0.00000001:

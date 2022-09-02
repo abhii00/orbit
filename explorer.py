@@ -9,9 +9,9 @@ class Explorer:
         mass (float): the mass of the object (in true units)
         radius (float): the radius of the object (in true units)
         color (tuple): the color of the object
-        position (np array): 2d vector of the position of the object (in true units)
-        velocity (np array): 2d vector of the velocity of the object (in true units)
-        orientation(np array): 2d vector of the orientation of the object
+        position (np array): 3d vector of the position of the object (in true units)
+        velocity (np array): 3d vector of the velocity of the object (in true units)
+        orientation(np array): 3d vector of the orientation of the object
         trail_length (int): how many points to plot for the trail
     Returns:
         None
@@ -40,9 +40,9 @@ class Explorer:
             None
         '''
 
-        pyg.draw.circle(window, self.color, self.position / constants.units.L, constants.disp.R(self.radius / constants.units.L))
+        pyg.draw.circle(window, self.color, self.position[:2] / constants.units.L, constants.disp.R(self.radius / constants.units.L))
 
-        pyg.draw.lines(window, self.trail_color, False, (self.trail / constants.units.L).tolist(), self.trail_thickness)
+        pyg.draw.lines(window, self.trail_color, False, (self.trail[:,:2] / constants.units.L).tolist(), self.trail_thickness)
 
     def move(self, F, timeStep):
         '''Updates the position and motion of the explorer.

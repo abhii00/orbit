@@ -13,6 +13,7 @@ class Explorer:
         velocity (np array): 3d vector of the velocity of the object (in true units)
         orientation(np array): 3d vector of the orientation of the object
         trail_length (int): how many points to plot for the trail
+        thrust (float): the thrust of the spacecraft (in true units)
     Returns:
         None
     '''
@@ -25,7 +26,8 @@ class Explorer:
         self.position = np.array(position, dtype='float64')
         self.velocity = np.array(velocity, dtype='float64')
         self.orientation = np.array(orientation, dtype='float64')
-        self.trail_length = kwargs.get("trail_length", 1200)
+        self.thrust = kwargs.get('thrust', 15)
+        self.trail_length = kwargs.get('trail_length', 1200)
         self.acceleration = np.empty_like(position, dtype='float64')
         self.trail = np.array([self.position, self.position])
         self.trail_color = tuple([val * 0.7 for val in self.color])
@@ -44,21 +46,30 @@ class Explorer:
 
         pyg.draw.lines(window, self.trail_color, False, (self.trail[:,:2] / constants.units.L).tolist(), self.trail_thickness)
 
-    def move(self, F, timeStep):
+    def _thrust(self, keysPressed):
+        '''Calculates the thrust on the explorer.
+
+        Paramters:
+            keysPressed (list): the list of keys pressed currently
+        '''
+        return np.array([keysPressed[pyg.K_RIGHT] - keysPressed[pyg.K_LEFT], keysPressed[pyg.K_DOWN] - keysPressed[pyg.K_UP], 0]) * self.thrust
+
+    def move(self, F, timeStep, keysPressed):
         '''Updates the position and motion of the explorer.
 
         Parameters:
-            F (np array): 3d vector of the forces on the body (in true units)
+            F (np array): 3d vector of the environmental forces on the body (in true units)
             timeStep (float): the time step size (in true units)
         '''
+
         m = self.mass
-        a = F(self)/m
+        a = (F(self)+self._thrust(keysPressed))/m
         v = self.velocity
         r = self.position
         dt = timeStep
 
         r += v*dt + 0.5*a*dt**2
-        a_new = F(self)/m
+        a_new = (F(self)+self._thrust(keysPressed))/m
         v += 0.5*(a+a_new)*dt
 
         self.position = r

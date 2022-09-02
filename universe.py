@@ -40,6 +40,7 @@ class Universe:
         self.timeEnd = 0
         self.timeStepTotal = 0
         self.simRunning = False
+        self.keysPressed = []
 
     def simulate(self, timeStep, timeEnd):
         '''Simulates the motion.
@@ -60,6 +61,7 @@ class Universe:
             for event in pyg.event.get():
                 if event.type == pyg.QUIT:
                     self.simRunning = False
+            self.keysPressed = pyg.key.get_pressed()
 
             self._draw()
             self._move()
@@ -91,10 +93,9 @@ class Universe:
     def _move(self):
         '''Updates the position and motion of the bodies.'''
 
-        for celestialObject in self.celestialObjects:
-            celestialObject.move(self.forces, self.timeStep)
+        for celestialObject in self.celestialObjects: celestialObject.move(self.forces, self.timeStep)
 
-        if self.explorerExists: self.explorer.move(self.forces, self.timeStep)
+        if self.explorerExists: self.explorer.move(self.forces, self.timeStep, self.keysPressed)
     
     def _draw(self):
         '''Updates the window.'''
@@ -109,8 +110,7 @@ class Universe:
             star_radius = self.starrySky_radii[i]
             pyg.draw.circle(self.window, (star_color, star_color, star_color), star_position, star_radius)
 
-        for celestialObject in self.celestialObjects:
-            celestialObject.draw(self.window)
+        for celestialObject in self.celestialObjects: celestialObject.draw(self.window)
 
         if self.explorerExists: self.explorer.draw(self.window)
         

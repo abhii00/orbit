@@ -35,7 +35,7 @@ class Explorer:
         '''Draws the explorer onto a window.
         
         Parameters:
-            window (pygame.display): the window onto which the body is drawn
+            window (pygame.Surface): the window onto which the body is drawn
         Returns:
             None
         '''
@@ -48,7 +48,7 @@ class Explorer:
         '''Updates the position and motion of the explorer.
 
         Parameters:
-            F (np array): 2d vector of the forces on the body (in true units)
+            F (np array): 3d vector of the forces on the body (in true units)
             timeStep (float): the time step size (in true units)
         '''
         m = self.mass

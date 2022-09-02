@@ -33,7 +33,7 @@ class CelestialObject:
         '''Draws the body onto a window.
         
         Parameters:
-            window (pygame.display): the window onto which the body is drawn
+            window (pygame.Surface): the window onto which the body is drawn
         Returns:
             None
         '''

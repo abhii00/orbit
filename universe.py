@@ -9,18 +9,23 @@ class Universe:
         windowHeight (int): the pixel height of the window
         windowWidth (int): the pixel width of the window
         celestialObjects (list): a list of the bodies in the universe
+        explorer (Explorer): an explorer
+        starrySky_number (int): number of stars in background
+        starrySky_twinkleStep (int): period of star twinkle
 
     Returns:
         None
     '''
 
-    def __init__(self, windowHeight = 800, windowWidth = 800, celestialObjects = [], **kwargs):
+    def __init__(self, windowHeight = 800, windowWidth = 800, **kwargs):
         '''Initialisation.'''
 
         #init
         self.windowHeight = windowHeight
         self.windowWidth = windowWidth
-        self.celestialObjects = celestialObjects
+        self.celestialObjects = kwargs.get('celestialObjects', [])
+        self.explorer = kwargs.get('explorer', None)
+        self.explorerExists = True if self.explorer != None else False
         self.starrySky_number = kwargs.get("starrySky_number", 80)
         self.starrySky_twinkleStep = kwargs.get("starrySky_twinkleStep", 100)
         self.window = pyg.display.set_mode([self.windowHeight, self.windowWidth], pyg.DOUBLEBUF, 32)
@@ -35,9 +40,6 @@ class Universe:
         self.timeEnd = 0
         self.timeStepTotal = 0
         self.simRunning = False
-
-    def addExplorer(self, explorer):
-        self.celestialObjects.append(explorer)
 
     def simulate(self, timeStep, timeEnd):
         '''Simulates the motion.
@@ -61,6 +63,7 @@ class Universe:
 
             self._draw()
             self._move()
+
             self.timeTotal += self.timeStep
             self.timeStepTotal += 1
 
@@ -91,6 +94,8 @@ class Universe:
         for celestialObject in self.celestialObjects:
             celestialObject.move(self.forces, self.timeStep)
 
+        if self.explorerExists: self.explorer.move(self.forces, self.timeStep)
+    
     def _draw(self):
         '''Updates the window.'''
         self.window.lock()
@@ -106,6 +111,8 @@ class Universe:
 
         for celestialObject in self.celestialObjects:
             celestialObject.draw(self.window)
+
+        if self.explorerExists: self.explorer.draw(self.window)
         
         self.window.unlock()
         pyg.display.update()

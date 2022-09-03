@@ -25,6 +25,7 @@ class Universe:
         self.windowWidth = windowWidth
         self.celestialObjects = kwargs.get('celestialObjects', [])
         self.explorer = kwargs.get('explorer', None)
+        self.center = np.zeros(3)
         self.explorerExists = True if self.explorer != None else False
         self.starrySky_number = kwargs.get("starrySky_number", 80)
         self.starrySky_twinkleStep = kwargs.get("starrySky_twinkleStep", 100)
@@ -36,11 +37,13 @@ class Universe:
 
         #simulate
         self.timeStep = 0
+        self.timeStep_original = self.timeStep
         self.timeTotal = 0
         self.timeEnd = 0
         self.timeStepTotal = 0
         self.simRunning = False
         self.keysPressed = []
+        self.displayMode = '2D'
 
     def simulate(self, timeStep, timeEnd):
         '''Simulates the motion.
@@ -53,6 +56,7 @@ class Universe:
         '''
 
         self.timeStep = timeStep
+        self.timeStep_original = self.timeStep
         self.timeTotal = 0
         self.timeEnd = timeEnd
         self.simRunning = True
@@ -83,9 +87,8 @@ class Universe:
         F = np.array([0, 0, 0], dtype='float64')
 
         for celestialObject in self.celestialObjects:
-            if np.linalg.norm(celestialObject.position - mainObject.position) > 0.00000001:
+            if np.linalg.norm(celestialObject.position - mainObject.position) > celestialObject.radius + mainObject.radius:
                 r = (celestialObject.position - mainObject.position)
-                
                 F += (constants.consts.G * celestialObject.mass * mainObject.mass / np.linalg.norm(r)**2) * (r / np.linalg.norm(r))
         
         return F
@@ -102,17 +105,27 @@ class Universe:
         self.window.lock()
         self.window.fill((0,0,0))
 
-        if self.timeStepTotal % self.starrySky_twinkleStep == 0:
-           self.starrySky_modifiers = np.random.rand(len(self.starrySky_colors)) 
+        if self.displayMode == '2D':
 
-        for i, star_position in enumerate(self.starrySky_positions):
-            star_color = self.starrySky_colors[i] * self.starrySky_modifiers[i]
-            star_radius = self.starrySky_radii[i]
-            pyg.draw.circle(self.window, (star_color, star_color, star_color), star_position, star_radius)
+            if self.timeStepTotal % self.starrySky_twinkleStep == 0:
+                self.starrySky_modifiers = np.random.rand(len(self.starrySky_colors)) 
 
-        for celestialObject in self.celestialObjects: celestialObject.draw(self.window)
+            for i, star_position in enumerate(self.starrySky_positions):
+                star_color = self.starrySky_colors[i] * self.starrySky_modifiers[i]
+                star_radius = self.starrySky_radii[i]
+                pyg.draw.circle(self.window, (star_color, star_color, star_color), star_position, star_radius)
 
-        if self.explorerExists: self.explorer.draw(self.window)
+            for celestialObject in self.celestialObjects: 
+                pyg.draw.circle(self.window, celestialObject.color, celestialObject.position[:2] / constants.units.L, 
+                                constants.disp.R(celestialObject.radius / constants.units.L))
+                pyg.draw.lines(self.window, celestialObject.trail_color, False, (celestialObject.trail[:,:2] / constants.units.L).tolist(), 
+                                celestialObject.trail_thickness)
+
+            if self.explorerExists: 
+                pyg.draw.circle(self.window, self.explorer.color, self.explorer.position[:2] / constants.units.L, 
+                                constants.disp.R(self.explorer.radius / constants.units.L))
+                pyg.draw.lines(self.window, self.explorer.trail_color, False, (self.explorer.trail[:,:2] / constants.units.L).tolist(), 
+                                self.explorer.trail_thickness)
         
         self.window.unlock()
         pyg.display.update()

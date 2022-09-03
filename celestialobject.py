@@ -29,19 +29,6 @@ class CelestialObject:
         self.trail_color = tuple([val * 0.7 for val in self.color])
         self.trail_thickness = 1
     
-    def draw(self, window):
-        '''Draws the body onto a window.
-        
-        Parameters:
-            window (pygame.Surface): the window onto which the body is drawn
-        Returns:
-            None
-        '''
-
-        pyg.draw.circle(window, self.color, self.position[:2] / constants.units.L, constants.disp.R(self.radius / constants.units.L))
-
-        pyg.draw.lines(window, self.trail_color, False, (self.trail[:,:2] / constants.units.L).tolist(), self.trail_thickness)
-
     def move(self, F, timeStep):
         '''Updates the position and motion of the body.
 

@@ -26,25 +26,12 @@ class Explorer:
         self.position = np.array(position, dtype='float64')
         self.velocity = np.array(velocity, dtype='float64')
         self.orientation = np.array(orientation, dtype='float64')
-        self.thrust = kwargs.get('thrust', 15)
+        self.thrust = kwargs.get('thrust', 100)
         self.trail_length = kwargs.get('trail_length', 1200)
         self.acceleration = np.empty_like(position, dtype='float64')
         self.trail = np.array([self.position, self.position])
         self.trail_color = tuple([val * 0.7 for val in self.color])
         self.trail_thickness = 1
-    
-    def draw(self, window):
-        '''Draws the explorer onto a window.
-        
-        Parameters:
-            window (pygame.Surface): the window onto which the body is drawn
-        Returns:
-            None
-        '''
-
-        pyg.draw.circle(window, self.color, self.position[:2] / constants.units.L, constants.disp.R(self.radius / constants.units.L))
-
-        pyg.draw.lines(window, self.trail_color, False, (self.trail[:,:2] / constants.units.L).tolist(), self.trail_thickness)
 
     def _thrust(self, keysPressed):
         '''Calculates the thrust on the explorer.

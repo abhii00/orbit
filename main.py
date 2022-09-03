@@ -3,10 +3,6 @@ import constants
 from universe import Universe
 from data import microSolarSystem, microExplorer
 
-#TODO Add collisions
-#TODO Add solar system dataset
-#TODO Add orbit prediction
-
 if __name__ == '__main__':
     pyg.init()
     x = Universe(800, 800, celestialObjects=microSolarSystem, explorer=microExplorer)
